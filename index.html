@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>时间轴</title>
+<style>
+  :root{
+    --bg:#f7f7f8; --panel:#ffffff; --ink:#1c1c1e; --sub:#8e8e93;
+    --axis:#111114; --grid:#e4e4e8; --line:#d9d9de; --danger:#dc2626;
+    --laneH:72px; --rulerH:36px; --labelColW:58px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    background:var(--bg); color:var(--ink);
+    height:100%; display:flex; flex-direction:column;
+    overflow:hidden; overscroll-behavior:none;
+    -webkit-user-select:none; user-select:none;
+    -webkit-text-size-adjust:100%;
+  }
+  button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;touch-action:manipulation;}
+
+  /* ---------- header ---------- */
+  header{
+    flex:0 0 auto; display:flex; align-items:center; gap:4px;
+    padding:calc(env(safe-area-inset-top) + 8px) 10px 8px;
+    background:var(--panel); border-bottom:1px solid var(--line); z-index:20;
+  }
+  header .navBtn{
+    width:36px;height:36px;border-radius:10px;font-size:20px;line-height:1;
+    display:flex;align-items:center;justify-content:center;color:var(--sub);
+  }
+  header .navBtn:active{background:#eee;}
+  #dateLabel{
+    flex:1;text-align:center;font-size:16px;font-weight:600;
+    display:flex;flex-direction:column;gap:1px;
+  }
+  #dateLabel small{font-size:10px;font-weight:400;color:var(--sub);}
+  #btnCal{font-size:19px;}
+
+  /* ---------- main ---------- */
+  main{flex:1 1 auto; display:flex; min-height:0; position:relative;}
+  #labelCol{
+    flex:0 0 var(--labelColW); background:var(--panel);
+    border-right:1px solid var(--line); z-index:10;
+    display:flex; flex-direction:column;
+  }
+  #labelCol .rulerSpacer{height:var(--rulerH);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--sub);}
+  .laneLabel{
+    height:var(--laneH); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; font-size:11px; font-weight:600; color:var(--ink); text-align:center;
+    border-bottom:1px solid var(--grid); padding:0 2px; word-break:break-all;
+  }
+  .laneLabel small{font-size:9px;color:var(--sub);font-weight:400;}
+  #tlWrap{flex:1 1 auto; position:relative; overflow:hidden; background:var(--bg);}
+  #tl{position:absolute; inset:0; touch-action:none;}
+  #ruler{position:absolute;top:0;left:0;right:0;height:var(--rulerH);
+    border-bottom:1px solid var(--line);background:var(--panel);}
+  .tick{position:absolute;bottom:0;width:1px;background:var(--grid);pointer-events:none;}
+  .tick.major{background:var(--line);}
+  .tickText{position:absolute;top:3px;transform:translateX(-50%);font-size:10px;
+    color:var(--sub);white-space:nowrap;pointer-events:none;}
+  .tickText.day{color:var(--ink);font-weight:600;}
+  #lanes{position:absolute;top:var(--rulerH);bottom:0;left:0;right:0;}
+  .lane{position:relative;height:var(--laneH);border-bottom:1px solid var(--grid);}
+  .lane:last-child{border-bottom:none;}
+  .lane::before{ /* the axis line */
+    content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;
+    background:var(--axis);border-radius:1px;
+  }
+  .gridLine{position:absolute;top:0;bottom:0;width:1px;background:var(--grid);pointer-events:none;}
+
+  /* ---------- task bars ---------- */
+  .bar{
+    position:absolute;height:20px;border-radius:10px;background:var(--c,#2f6fed);
+    box-shadow:0 1px 3px rgba(0,0,0,.25); z-index:5;
+  }
+  .bar .barName{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:10px;font-weight:600;padding:0 14px;
+    white-space:nowrap;overflow:hidden;pointer-events:none;
+  }
+  .bar .tl-label{
+    position:absolute;font-size:10px;font-weight:600;color:var(--c,#2f6fed);
+    white-space:nowrap;pointer-events:none;line-height:1;
+  }
+  .bar .tl-label.s{left:0;}
+  .bar .tl-label.e{right:0;}
+  .bar.labels-top .tl-label{bottom:calc(100% + 4px);}
+  .bar.labels-bottom .tl-label{top:calc(100% + 4px);}
+  .bar .h{
+    position:absolute;top:-4px;bottom:-4px;width:20px;z-index:6;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .bar .h::before{
+    content:"";width:4px;height:12px;border-radius:2px;
+    background:rgba(255,255,255,.85);box-shadow:0 0 0 1px rgba(0,0,0,.15);
+  }
+  .bar .h.l{left:-6px;} .bar .h.r{right:-6px;}
+  .bar.dragging{z-index:30;box-shadow:0 6px 16px rgba(0,0,0,.35);transform:scale(1.03);}
+  .bar.pulse{animation:pulse 1s ease-out 2;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(47,111,237,.55);}
+    100%{box-shadow:0 0 0 14px rgba(47,111,237,0);}
+  }
+  .bar.ghost{opacity:.55;border:2px dashed rgba(255,255,255,.9);background:var(--c);}
+  #ghostHint{
+    position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:50%;transform:translateX(-50%);
+    background:rgba(28,28,30,.9);color:#fff;font-size:12px;padding:8px 14px;border-radius:20px;
+    z-index:60;white-space:nowrap;display:none;align-items:center;gap:8px;
+  }
+  #ghostHint button{color:#ffb0b0;font-size:12px;font-weight:600;}
+
+  #nowLine{position:absolute;top:0;bottom:0;width:2px;background:var(--danger);z-index:15;pointer-events:none;display:none;}
+  #nowLine::before{
+    content:"现在";position:absolute;top:2px;left:4px;font-size:9px;color:#fff;
+    background:var(--danger);padding:1px 4px;border-radius:6px;white-space:nowrap;
+  }
+
+  /* ---------- footer ---------- */
+  footer{
+    flex:0 0 auto;display:flex;gap:8px;align-items:center;
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 10px);
+    background:var(--panel);border-top:1px solid var(--line);z-index:20;
+  }
+  footer button{
+    height:42px;border-radius:12px;font-size:14px;font-weight:600;
+    background:#f0f0f3;color:var(--ink);
+  }
+  footer button:active{background:#e2e2e7;}
+  #btnAdd{flex:1;background:var(--ink);color:#fff;font-size:15px;}
+  #btnToday{padding:0 14px;}
+  .zoomBtn{width:42px;font-size:20px;}
+
+  /* ---------- overlays ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;
+    display:none;align-items:flex-end;justify-content:center;
+  }
+  .overlay.show{display:flex;}
+  .sheet{
+    width:100%;max-width:520px;background:var(--panel);
+    border-radius:18px 18px 0 0;padding:14px 16px calc(env(safe-area-inset-bottom) + 16px);
+    max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  .sheet h3{font-size:15px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+  .sheet h3 .x{color:var(--sub);font-size:18px;padding:4px 8px;}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .tabs button{
+    flex:1;height:34px;border-radius:9px;background:#f0f0f3;font-size:12px;color:var(--sub);font-weight:600;
+  }
+  .tabs button.on{background:var(--ink);color:#fff;}
+  .frow{display:flex;gap:8px;margin-bottom:10px;}
+  .field{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;color:var(--sub);font-weight:600;}
+  .field input{
+    height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px;
+    font-size:14px;font-family:inherit;background:#fafafa;color:var(--ink);
+    -webkit-user-select:text;user-select:text;
+  }
+  .field input:focus{outline:none;border-color:var(--ink);}
+  .primary{
+    width:100%;height:44px;border-radius:12px;background:var(--ink);color:#fff;
+    font-size:15px;font-weight:600;margin-top:4px;
+  }
+  .primary:active{opacity:.85;}
+  .dangerBtn{
+    width:100%;height:42px;border-radius:12px;background:#fdecec;color:var(--danger);
+    font-size:14px;font-weight:600;margin-top:10px;
+  }
+
+  /* detail card */
+  #colorRow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .sw{width:30px;height:30px;border-radius:50%;border:2px solid transparent;}
+  .sw.on{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset;}
+  #lineRow{display:flex;gap:8px;margin-bottom:10px;}
+  #lineRow button{
+    flex:1;height:36px;border-radius:10px;background:#f0f0f3;font-size:12px;font-weight:600;color:var(--sub);
+  }
+  #lineRow button.on{background:var(--ink);color:#fff;}
+  #durText{font-size:11px;color:var(--sub);margin:-4px 0 10px 2px;}
+
+  /* calendar */
+  #calHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  #calHead b{font-size:16px;}
+  #calHead .navBtn{width:34px;height:34px;font-size:18px;color:var(--sub);}
+  #calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px;}
+  #calGrid .wd{font-size:10px;color:var(--sub);text-align:center;padding:4px 0;font-weight:600;}
+  #calGrid .day{
+    aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:13px;border-radius:10px;gap:2px;position:relative;
+  }
+  #calGrid .day.dim{color:#c7c7cc;}
+  #calGrid .day.today{font-weight:700;color:var(--danger);}
+  #calGrid .day.sel{background:var(--ink);color:#fff;}
+  #calGrid .day.sel.today{color:#fff;}
+  #calGrid .day .dot{width:4px;height:4px;border-radius:50%;background:var(--danger);}
+  #calGrid .day.sel .dot{background:#fff;}
+  #dayList{border-top:1px solid var(--line);padding-top:10px;}
+  #dayList h4{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  #dayList .item{
+    display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:10px;font-size:13px;
+  }
+  #dayList .item:active{background:#f0f0f3;}
+  #dayList .item .cd{width:10px;height:10px;border-radius:3px;flex:0 0 auto;}
+  #dayList .item .nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #dayList .item .tm{font-size:11px;color:var(--sub);}
+  #dayList .empty{font-size:12px;color:var(--sub);padding:6px;}
+  .ioRow{display:flex;gap:8px;margin-top:14px;}
+  .ioRow button{
+    flex:1;height:38px;border-radius:10px;background:#f0f0f3;font-size:12px;font-weight:600;color:var(--sub);
+  }
+
+  /* toast */
+  #toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 80px);transform:translateX(-50%);
+    background:rgba(28,28,30,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:20px;
+    z-index:300;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:90vw;
+    overflow:hidden;text-overflow:ellipsis;
+  }
+  #toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="navBtn" id="prevDay">‹</button>
+  <div id="dateLabel"><span id="dateMain">—</span><small id="dateSub"></small></div>
+  <button class="navBtn" id="nextDay">›</button>
+  <button class="navBtn" id="btnCal">📅</button>
+</header>
+
+<main>
+  <div id="labelCol">
+    <div class="rulerSpacer">北京<br>时间</div>
+    <div class="laneLabel" data-line="0"><span>Line1</span><small>长按改名</small></div>
+    <div class="laneLabel" data-line="1"><span>Line2</span><small>长按改名</small></div>
+    <div class="laneLabel" data-line="2"><span>Line3</span><small>长按改名</small></div>
+  </div>
+  <div id="tlWrap">
+    <div id="tl">
+      <div id="ruler"></div>
+      <div id="lanes">
+        <div class="lane" data-line="0"></div>
+        <div class="lane" data-line="1"></div>
+        <div class="lane" data-line="2"></div>
+      </div>
+      <div id="nowLine"></div>
+    </div>
+    <div id="ghostHint">拖动半透明块放置任务 · <button id="ghostCancel">取消</button></div>
+  </div>
+</main>
+
+<footer>
+  <button id="btnAdd">＋ 添加任务</button>
+  <button id="btnToday">现在</button>
+  <button class="zoomBtn" id="zoomOut">－</button>
+  <button class="zoomBtn" id="zoomIn">＋</button>
+</footer>
+
+<!-- add sheet -->
+<div class="overlay" id="addOverlay">
+  <div class="sheet">
+    <h3>添加任务 <button class="x" data-close="addOverlay">✕</button></h3>
+    <div class="tabs">
+      <button data-mode="0" class="on">起止时间</button>
+      <button data-mode="1">开始+时长</button>
+      <button data-mode="2">时长拖放</button>
+    </div>
+    <div class="frow">
+      <div class="field" style="flex:2"><label>任务名称 *</label><input id="aName" placeholder="例如：写报告"></div>
+    </div>
+    <div class="frow" id="rowDate">
+      <div class="field"><label>日期</label><input type="date" id="aDate"></div>
+      <div class="field"><label>开始时间</label><input type="time" id="aStart"></div>
+      <div class="field" id="fEnd"><label>结束时间</label><input type="time" id="aEnd"></div>
+    </div>
+    <div class="frow" id="rowDur" style="display:none">
+      <div class="field"><label>时长（小时）</label><input type="number" id="aDurH" min="0" inputmode="numeric" placeholder="1"></div>
+      <div class="field"><label>时长（分钟）</label><input type="number" id="aDurM" min="0" max="59" inputmode="numeric" placeholder="30"></div>
+    </div>
+    <button class="primary" id="addConfirm">确 定</button>
+  </div>
+</div>
+
+<!-- detail card -->
+<div class="overlay" id="detailOverlay">
+  <div class="sheet">
+    <h3>编辑任务 <button class="x" data-close="detailOverlay">✕</button></h3>
+    <div class="frow">
+      <div class="field"><label>任务名称</label><input id="dName"></div>
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>颜色</label></div>
+    <div id="colorRow"></div>
+    <div class="field" style="margin-bottom:8px"><label>所在线</label></div>
+    <div id="lineRow"></div>
+    <div class="frow">
+      <div class="field"><label>开始 日期</label><input type="date" id="dSd"></div>
+      <div class="field"><label>开始 时间</label><input type="time" id="dSt"></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>结束 日期</label><input type="date" id="dEd"></div>
+      <div class="field"><label>结束 时间</label><input type="time" id="dEt"></div>
+    </div>
+    <div id="durText"></div>
+    <button class="primary" id="dSave">保 存</button>
+    <button class="dangerBtn" id="dDelete">删除任务</button>
+  </div>
+</div>
+
+<!-- calendar -->
+<div class="overlay" id="calOverlay">
+  <div class="sheet">
+    <h3>日历 <button class="x" data-close="calOverlay">✕</button></h3>
+    <div id="calHead">
+      <button class="navBtn" id="calPrev">‹</button>
+      <b id="calTitle">—</b>
+      <button class="navBtn" id="calNext">›</button>
+    </div>
+    <div id="calGrid"></div>
+    <div id="dayList"></div>
+    <div class="ioRow">
+      <button id="btnExport">导出备份</button>
+      <button id="btnImport">导入备份</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ================= constants & state ================= */
+var MIN = 60000;
+var PALETTE = ['#2f6fed','#84cc16','#dc2626','#0f766e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#475569'];
+var LANE_H = 72, RULER_H = 36;
+var HOUR_PER_SCR_MAX = 1, HOUR_PER_SCR_MIN = 168; /* 1 hour .. 7 days per screen */
+
+var store = {
+  v: 1,
+  lines: [{name:'Line1'},{name:'Line2'},{name:'Line3'}],
+  tasks: [],   /* {id,name,line,start,end,color} start/end = ms epoch */
+  seq: 1
+};
+var view = { center: Date.now(), pxPerHour: 90 };
+var cw = 300;                       /* timeline area width in px */
+var barEls = {};                    /* id -> element */
+var ghost = null;                   /* {name,dur,color,line,start} */
+var gesture = null;
+
+/* ================= utils ================= */
+function $(id){ return document.getElementById(id); }
+function pad(n){ return (n<10?'0':'')+n; }
+function fmtHM(t){ var d=new Date(t); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function fmtMD(t){ var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate(); }
+function fmtDate(t){ var d=new Date(t); return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日'; }
+function weekCN(t){ return '周'+'日一二三四五六'[new Date(t).getDay()]; }
+function dayKey(t){ var d=new Date(t); return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
+function snapMin(t){ return Math.round(t/MIN)*MIN; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function toDateInput(ms){ var d=new Date(ms); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function toTimeInput(ms){ var d=new Date(ms); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function fromDateTime(dateStr,timeStr){
+  var p=dateStr.split('-'), q=timeStr.split(':');
+  return new Date(+p[0],+p[1]-1,+p[2],+(q[0]||0),+(q[1]||0),0,0).getTime();
+}
+var toastTimer=null;
+function toast(msg){
+  var el=$('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove('show');},2200);
+}
+function overlaps(aS,aE,bS,bE){ return aS < bE && aE > bS; }
+function taskOverlapOnLine(line,s,e,excludeId){
+  for(var i=0;i<store.tasks.length;i++){
+    var t=store.tasks[i];
+    if(t.line===line && t.id!==excludeId && overlaps(s,e,t.start,t.end)) return t;
+  }
+  return null;
+}
+/* nearest valid start on a lane for [s, s+dur], or null */
+function clampPlacement(line,s,dur,excludeId){
+  var busy=[];
+  for(var i=0;i<store.tasks.length;i++){
+    var t=store.tasks[i];
+    if(t.line===line && t.id!==excludeId) busy.push([t.start,t.end]);
+  }
+  busy.sort(function(a,b){return a[0]-b[0];});
+  for(var k=0;k<80;k++){
+    var hit=null;
+    for(var j=0;j<busy.length;j++){
+      if(s < busy[j][1] && s+dur > busy[j][0]){ hit=busy[j]; break; }
+    }
+    if(!hit) return s;
+    var left=hit[0]-dur, right=hit[1];
+    s = (left>-Infinity && Math.abs(left-s)<=Math.abs(right-s)) ? left : right;
+  }
+  return null;
+}
+/* find lane+start nearest to preferred for a new task */
+function findPlacement(prefLine,s,dur){
+  var order=[prefLine,0,1,2].filter(function(v,i,a){return a.indexOf(v)===i;});
+  var best=null;
+  for(var i=0;i<order.length;i++){
+    var c=clampPlacement(order[i],s,dur,-1);
+    if(c===null) continue;
+    if(c===s) return {line:order[i],start:c};
+    if(best===null || Math.abs(c-s)<Math.abs(best.start-s)) best={line:order[i],start:c};
+  }
+  return best;
+}
+
+/* ================= persistence ================= */
+var LS_KEY='timeline3lines.v1';
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }
+  catch(e){ toast('保存失败：存储空间不足'); }
+}
+function load(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(!raw) return;
+    var d=JSON.parse(raw);
+    if(d && d.v===1 && Array.isArray(d.tasks)){
+      store.lines=d.lines||store.lines;
+      store.tasks=d.tasks;
+      store.seq=d.seq||store.tasks.length+1;
+      refreshLineLabels();
+    }
+  }catch(e){}
+}
+
+/* ================= view transform ================= */
+function pxPerMs(){ return view.pxPerHour/3600000; }
+function xOf(t){ return (t-view.center)*pxPerMs() + cw/2; }
+function tOf(x){ return view.center + (x-cw/2)/pxPerMs(); }
+function clampZoom(){
+  var w=Math.max(window.innerWidth - 58, 100);
+  var lo=w/(HOUR_PER_SCR_MIN*3600000), hi=w/(HOUR_PER_SCR_MAX*3600000); /* px per ms */
+  view.pxPerHour = clamp(view.pxPerHour, lo*3600000, hi*3600000);
+}
+function zoomAt(factor, anchorX){
+  var anchorT=tOf(anchorX===undefined? cw/2 : anchorX);
+  view.pxPerHour=clamp(view.pxPerHour*factor,
+    (Math.max(window.innerWidth-58,100)/(HOUR_PER_SCR_MIN*3600000))*3600000,
+    (Math.max(window.innerWidth-58,100)/(HOUR_PER_SCR_MAX*3600000))*3600000);
+  var ax=(anchorX===undefined? cw/2 : anchorX);
+  view.center = anchorT - (ax-cw/2)/pxPerMs();
+  render();
+}
+
+/* ================= render ================= */
+function render(){
+  clampZoom();
+  cw = $('tl').clientWidth;
+  renderHeader();
+  renderRuler();
+  renderBars();
+  renderNow();
+}
+
+function renderHeader(){
+  $('dateMain').textContent = fmtDate(view.center)+' '+weekCN(view.center);
+  var dayTasks=store.tasks.filter(function(t){ return dayKey(t.start)===dayKey(view.center); });
+  $('dateSub').textContent = dayTasks.length ? '当天 '+dayTasks.length+' 个任务 · 点此打开日历' : '点日期打开日历';
+}
+
+function pickStep(){
+  var stepsMin=[1,5,10,15,30,60,120,180,360,720,1440];
+  for(var i=0;i<stepsMin.length;i++){
+    if(stepsMin[i]*view.pxPerHour/60 >= 70) return stepsMin[i];
+  }
+  return 1440;
+}
+function renderRuler(){
+  var ruler=$('ruler'), lanes=$('lanes');
+  ruler.innerHTML='';
+  var old=lanes.querySelectorAll('.gridLine');
+  for(var i=0;i<old.length;i++) old[i].remove();
+  var stepMin=pickStep(), stepMs=stepMin*MIN;
+  var t0=tOf(0), t1=tOf(cw);
+  var t=Math.ceil(t0/stepMs)*stepMs;
+  /* align day ticks */
+  while(t<=t1){
+    var x=xOf(t);
+    var d=new Date(t);
+    var isMid = d.getHours()===0 && d.getMinutes()===0;
+    var isDay  = stepMin>=1440 || isMid;
+    var tick=document.createElement('div');
+    tick.className='tick'+(isDay?' major':'');
+    tick.style.left=x+'px';
+    tick.style.height=isDay?'14px':'8px';
+    ruler.appendChild(tick);
+    var lb=document.createElement('div');
+    lb.className='tickText'+(isDay?' day':'');
+    lb.style.left=x+'px';
+    lb.textContent = isDay ? fmtMD(t) : fmtHM(t);
+    ruler.appendChild(lb);
+    if(stepMin<1440){
+      var gl=document.createElement('div');
+      gl.className='gridLine';
+      gl.style.left=x+'px';
+      lanes.appendChild(gl);
+    }
+    t+=stepMs;
+  }
+}
+
+function renderBars(){
+  var lanes=$('lanes');
+  var laneRects=[];
+  var laneEls=lanes.querySelectorAll('.lane');
+  var t0=tOf(-60), t1=tOf(cw+60);
+  var seen={};
+  /* per-lane ordering for alternating label sides */
+  var order=[[],[],[]];
+  for(var i=0;i<store.tasks.length;i++){
+    var t=store.tasks[i];
+    if(t.end>t0 && t.start<t1) order[t.line].push(t);
+  }
+  for(var L=0;L<3;L++) order[L].sort(function(a,b){return a.start-b.start;});
+  var labelSide={}; /* id -> 'top'|'bottom' */
+  for(var L2=0;L2<3;L2++){
+    for(var j=0;j<order[L2].length;j++) labelSide[order[L2][j].id]=(j%2===0)?'top':'bottom';
+  }
+  for(var k=0;k<store.tasks.length;k++){
+    var task=store.tasks[k];
+    if(!(task.end>t0 && task.start<t1)){ /* remove if offscreen */
+      if(barEls[task.id]){ barEls[task.id].remove(); delete barEls[task.id]; }
+      continue;
+    }
+    seen[task.id]=true;
+    var sx=xOf(task.start), ex=xOf(task.end);
+    var el=barEls[task.id];
+    if(!el){
+      el=document.createElement('div');
+      el.className='bar';
+      el.innerHTML='<div class="tl-label s"></div><div class="barName"></div>'+
+        '<div class="h l"></div><div class="h r"></div><div class="tl-label e"></div>';
+      lanes.appendChild(el);
+      barEls[task.id]=el;
+    }
+    el.style.setProperty('--c',task.color);
+    el.style.left=sx+'px';
+    el.style.width=Math.max(ex-sx,6)+'px';
+    el.style.top=(task.line*LANE_H + LANE_H/2 - 10)+'px';
+    el.classList.remove('labels-top','labels-bottom');
+    el.classList.add(labelSide[task.id]==='top'?'labels-top':'labels-bottom');
+    el.querySelector('.tl-label.s').textContent=fmtHM(task.start);
+    el.querySelector('.tl-label.e').textContent=fmtHM(task.end);
+    var nm=el.querySelector('.barName');
+    nm.textContent=task.name;
+    nm.style.display=(ex-sx<42)?'none':'flex';
+    el.style.display='';
+  }
+  for(var id in barEls){ if(!seen[id]){ barEls[id].remove(); delete barEls[id]; } }
+  /* ghost bar */
+  renderGhost(lanes);
+}
+
+function renderGhost(lanes){
+  var g=$('ghostBar');
+  if(!ghost){ if(g) g.remove(); return; }
+  if(!g){
+    g=document.createElement('div');
+    g.id='ghostBar'; g.className='bar ghost';
+    g.innerHTML='<div class="tl-label s"></div><div class="barName"></div><div class="h l"></div><div class="h r"></div><div class="tl-label e"></div>';
+    lanes.appendChild(g);
+  }
+  var sx=xOf(ghost.start), ex=xOf(ghost.start+ghost.dur);
+  g.style.setProperty('--c',ghost.color);
+  g.style.left=sx+'px';
+  g.style.width=Math.max(ex-sx,6)+'px';
+  g.style.top=(ghost.line*LANE_H + LANE_H/2 - 10)+'px';
+  g.querySelector('.tl-label.s').textContent=fmtHM(ghost.start);
+  g.querySelector('.tl-label.e').textContent=fmtHM(ghost.start+ghost.dur);
+  g.querySelector('.barName').textContent=ghost.name;
+  g.style.display='';
+}
+
+function renderNow(){
+  var now=Date.now(), x=xOf(now);
+  var nl=$('nowLine');
+  if(x<-40||x>cw+40){ nl.style.display='none'; return; }
+  nl.style.display='block'; nl.style.left=x+'px';
+}
+
+/* ================= gestures ================= */
+function localXY(touch){
+  var r=$('tl').getBoundingClientRect();
+  return {x:touch.clientX-r.left, y:touch.clientY-r.top};
+}
+function laneFromY(y){
+  return clamp(Math.floor((y - 0)/LANE_H),0,2); /* y relative to lanes top handled by caller */
+}
+function hitTest(x,y){
+  var lanesTop=RULER_H;
+  var yy=y-lanesTop;
+  if(yy<0||yy>=LANE_H*3) return null;
+  var lane=Math.floor(yy/LANE_H);
+  var inBand = (yy - lane*LANE_H) > (LANE_H/2-16) && (yy - lane*LANE_H) < (LANE_H/2+16);
+  var best=null;
+  var ids=Object.keys(barEls);
+  for(var i=ids.length-1;i>=0;i--){
+    var t=store.tasks.find(function(q){return q.id==ids[i];});
+    if(!t||t.line!==lane) continue;
+    var sx=xOf(t.start), ex=xOf(t.end);
+    if(x>=sx-10 && x<=ex+10 && inBand){
+      var kind='body';
+      if(x<sx+20 && ex-sx>36) kind='l';
+      else if(x>ex-20 && ex-sx>36) kind='r';
+      best={task:t,kind:kind};
+      break;
+    }
+  }
+  /* ghost hit */
+  if(!best && ghost){
+    var gy=ghost.line*LANE_H + LANE_H/2;
+    if(Math.abs(yy-gy)<18){
+      var gsx=xOf(ghost.start), gex=xOf(ghost.start+ghost.dur);
+      if(x>=gsx-10 && x<=gex+10) best={ghost:true,kind:'body'};
+    }
+  }
+  return best;
+}
+
+var tl=$('tl');
+function tsStart(e){
+  if(e.touches.length===2){
+    var a=localXY(e.touches[0]), b=localXY(e.touches[1]);
+    gesture={type:'pinch',d0:Math.max(Math.hypot(b.x-a.x,b.y-a.y),1),pph0:view.pxPerHour,
+             fx:(a.x+b.x)/2,ft:tOf((a.x+b.x)/2)};
+    return;
+  }
+  var p=localXY(e.touches[0]);
+  var hit=hitTest(p.x,p.y);
+  if(ghost){
+    gesture={type:'bar',isGhost:true,moved:false,x0:p.x,y0:p.y,t0:view.center};
+    return;
+  }
+  if(hit){
+    var t=hit.task;
+    gesture={type:hit.kind==='body'?'bar':'handle',side:hit.kind,task:t,
+             moved:false,x0:p.x,y0:p.y,
+             s0:t.start,e0:t.end,line0:t.line,t0:view.center};
+  }else{
+    gesture={type:'pan',moved:false,x0:p.x,c0:view.center};
+  }
+}
+function tsMove(e){
+  if(!gesture) return;
+  e.preventDefault();
+  if(gesture.type==='pinch'){
+    if(e.touches.length<2) return;
+    var a=localXY(e.touches[0]), b=localXY(e.touches[1]);
+    var d=Math.max(Math.hypot(b.x-a.x,b.y-a.y),1);
+    view.pxPerHour=clamp(gesture.pph0*d/gesture.d0,
+      (Math.max(window.innerWidth-58,100)/(HOUR_PER_SCR_MIN*3600000))*3600000,
+      (Math.max(window.innerWidth-58,100)/(HOUR_PER_SCR_MAX*3600000))*3600000);
+    view.center=gesture.ft-(gesture.fx-cw/2)/pxPerMs();
+    render();
+    return;
+  }
+  var p=localXY(e.touches[0]);
+  var dx=p.x-gesture.x0;
+  if(Math.abs(dx)>5||Math.abs(p.y-gesture.y0)>5) gesture.moved=true;
+  if(gesture.type==='pan'){
+    view.center=gesture.c0-dx/pxPerMs();
+    render();
+    return;
+  }
+  if(gesture.type==='bar'){
+    var dt=dx/pxPerMs();
+    var isG=gesture.isGhost;
+    var s0=isG?ghost.start:gesture.s0, dur=(isG?ghost.dur:gesture.e0-gesture.s0);
+    var desired=snapMin(s0+dt);
+    var lane=laneFromY(p.y-RULER_H);
+    var s2=clampPlacement(lane,desired,dur,isG?-1:gesture.task.id);
+    if(s2===null){ s2=snapMin(s0); lane=isG?ghost.line:gesture.task.line; s2=clampPlacement(lane,s2,dur,isG?-1:gesture.task.id)||s2; }
+    if(isG){ ghost.start=s2; ghost.line=lane; }
+    else { gesture.task.start=s2; gesture.task.end=s2+dur; gesture.task.line=lane; }
+    render();
+    return;
+  }
+  if(gesture.type==='handle'){
+    var dt2=dx/pxPerMs();
+    var t=gesture.task;
+    if(gesture.side==='l'){
+      var ns=clamp(snapMin(gesture.s0+dt2), gesture.e0-MIN*720, gesture.e0-MIN);
+      ns=clampPlacement(t.line,ns,gesture.e0-ns,t.id);
+      if(ns!==null){ t.start=ns; }
+    }else{
+      var ne=clamp(snapMin(gesture.e0+dt2), gesture.s0+MIN, gesture.s0+MIN*720);
+      var ok=true;
+      var hit2=taskOverlapOnLine(t.line,gesture.s0,ne,t.id);
+      if(hit2){ ne=hit2.start; }
+      t.end=Math.max(ne,gesture.s0+MIN);
+    }
+    render();
+    return;
+  }
+}
+function tsEnd(e){
+  if(!gesture) return;
+  var g=gesture;
+  if(g.type==='pinch'){ gesture=null; return; }
+  if(!g.moved && (g.type==='bar') && !g.isGhost){
+    openDetail(g.task);
+  }
+  if(g.type==='bar'||g.type==='handle'){
+    if(g.type==='bar'&&!g.isGhost){ checkNoOverlap(g.task); }
+    save();
+    if(g.isGhost) finalizeGhost();
+  }
+  gesture=null;
+}
+function checkNoOverlap(t){
+  var hit=taskOverlapOnLine(t.line,t.start,t.end,t.id);
+  if(hit){ /* shouldn't happen due to clamp, but revert defensively */
+    toast('与「'+hit.name+'」时间重叠，已回退');
+  }
+}
+tl.addEventListener('touchstart',tsStart,{passive:false});
+tl.addEventListener('touchmove',tsMove,{passive:false});
+tl.addEventListener('touchend',tsEnd);
+tl.addEventListener('touchcancel',function(){gesture=null;});
+
+/* desktop mouse fallback */
+var mdown=false;
+tl.addEventListener('mousedown',function(e){
+  var fake={touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:function(){}};
+  tsStart(fake); mdown=true;
+});
+window.addEventListener('mousemove',function(e){
+  if(!mdown||!gesture) return;
+  var fake={touches:[{clientX:e.clientX,clientY:e.clientY}],preventDefault:function(){}};
+  tsMove(fake);
+});
+window.addEventListener('mouseup',function(){ if(mdown){ mdown=false; tsEnd({}); } });
+tl.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var r=tl.getBoundingClientRect();
+  if(e.ctrlKey||e.metaKey||Math.abs(e.deltaY)>Math.abs(e.deltaX)){
+    zoomAt(e.deltaY<0?1.18:1/1.18, e.clientX-r.left);
+  }else{
+    view.center+= e.deltaX/pxPerMs(); render();
+  }
+},{passive:false});
+
+/* ================= add sheet ================= */
+var addMode=0;
+function openAdd(){
+  $('aName').value='';
+  var now=new Date();
+  $('aDate').value=toDateInput(now.getTime());
+  $('aStart').value=toTimeInput(now.getTime());
+  $('aEnd').value=toTimeInput(now.getTime()+60*MIN);
+  $('aDurH').value='1'; $('aDurM').value='0';
+  setAddMode(0);
+  $('addOverlay').classList.add('show');
+  setTimeout(function(){$('aName').focus();},350);
+}
+function setAddMode(m){
+  addMode=m;
+  var btns=document.querySelectorAll('.tabs button');
+  for(var i=0;i<btns.length;i++) btns[i].classList.toggle('on',+btns[i].dataset.mode===m);
+  $('fEnd').style.display = m===0?'flex':'none';
+  $('rowDur').style.display = m===1||m===2?'flex':'none';
+  $('aDate').parentNode.style.display = m===2?'none':'flex';
+  $('addConfirm').textContent = m===2?'去时间轴上放置':'确 定';
+}
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click',function(){ setAddMode(+b.dataset.mode); });
+});
+$('btnAdd').addEventListener('click',openAdd);
+$('addConfirm').addEventListener('click',function(){
+  var name=$('aName').value.trim();
+  if(!name){ toast('请先填写任务名称'); return; }
+  var dateStr=$('aDate').value;
+  var base=fromDateTime(dateStr||toDateInput(Date.now()),$('aStart').value||'00:00');
+  if(!isFinite(base)){ toast('请填写正确的开始时间'); return; }
+  var dur,start;
+  if(addMode===0){
+    start=base;
+    var end=fromDateTime(dateStr||toDateInput(Date.now()),$('aEnd').value||'00:00');
+    if(end<=start){ toast('结束时间需晚于开始时间'); return; }
+    dur=end-start;
+  }else{
+    var h=parseFloat($('aDurH').value)||0, m=parseFloat($('aDurM').value)||0;
+    dur=Math.round((h*60+m))*MIN;
+    if(dur<MIN){ toast('时长至少 1 分钟'); return; }
+    start=base;
+  }
+  if(addMode===2){
+    /* ghost placement */
+    ghost={name:name,dur:dur,color:PALETTE[store.tasks.length%PALETTE.length],line:1,start:snapMin(view.center-dur/2)};
+    $('addOverlay').classList.remove('show');
+    $('ghostHint').style.display='flex';
+    toast('拖动半透明块选择位置');
+    render();
+    return;
+  }
+  var pl=findPlacement(1,snapMin(start),dur);
+  if(!pl){ toast('三条线都放不下这个时间段'); return; }
+  createTask(name,pl.line,pl.start,pl.start+dur,PALETTE[store.tasks.length%PALETTE.length]);
+  $('addOverlay').classList.remove('show');
+});
+function createTask(name,line,start,end,color){
+  var t={id:store.seq++,name:name,line:line,start:start,end:end,color:color};
+  store.tasks.push(t);
+  save();
+  view.center=start+(end-start)/2;
+  render();
+  var el=barEls[t.id];
+  if(el) el.classList.add('pulse');
+  setTimeout(function(){ if(el) el.classList.remove('pulse'); },2100);
+  toast('已添加：'+name+' '+fmtHM(start)+'–'+fmtHM(end));
+}
+function finalizeGhost(){
+  if(!ghost) return;
+  var g=ghost; ghost=null;
+  $('ghostHint').style.display='none';
+  createTask(g.name,g.line,g.start,g.start+g.dur,g.color);
+}
+$('ghostCancel').addEventListener('click',function(){
+  ghost=null; $('ghostHint').style.display='none'; render();
+});
+
+/* ================= detail card ================= */
+var editTask=null, editColor=null, editLine=0;
+function openDetail(t){
+  editTask=t; editColor=t.color; editLine=t.line;
+  $('dName').value=t.name;
+  $('dSd').value=toDateInput(t.start); $('dSt').value=toTimeInput(t.start);
+  $('dEd').value=toDateInput(t.end);   $('dEt').value=toTimeInput(t.end);
+  buildColorRow(); buildLineRow(); updateDur();
+  $('detailOverlay').classList.add('show');
+}
+function buildColorRow(){
+  var row=$('colorRow'); row.innerHTML='';
+  PALETTE.forEach(function(c){
+    var b=document.createElement('button');
+    b.className='sw'+(c===editColor?' on':'');
+    b.style.background=c;
+    b.addEventListener('click',function(){ editColor=c; buildColorRow(); });
+    row.appendChild(b);
+  });
+}
+function buildLineRow(){
+  var row=$('lineRow'); row.innerHTML='';
+  store.lines.forEach(function(l,i){
+    var b=document.createElement('button');
+    b.textContent=l.name||('Line'+(i+1));
+    b.className=i===editLine?'on':'';
+    b.addEventListener('click',function(){ editLine=i; buildLineRow(); });
+    row.appendChild(b);
+  });
+}
+function updateDur(){
+  var s=fromDateTime($('dSd').value||toDateInput(Date.now()),$('dSt').value||'00:00');
+  var e=fromDateTime($('dEd').value||toDateInput(Date.now()),$('dEt').value||'00:00');
+  var mins=Math.max(0,Math.round((e-s)/MIN));
+  var txt = mins>=1440 ? Math.floor(mins/1440)+' 天 '+(mins%1440>=60?Math.floor(mins%1440/60)+' 小时 ':'')+(mins%60?mins%60+' 分钟':'')
+                       : (mins>=60?Math.floor(mins/60)+' 小时 ':'')+(mins%60?mins%60+' 分钟':'');
+  $('durText').textContent='时长：'+(txt||'0 分钟');
+}
+['dSd','dSt','dEd','dEt'].forEach(function(id){ $(id).addEventListener('change',updateDur); });
+$('dSave').addEventListener('click',function(){
+  var name=$('dName').value.trim();
+  if(!name){ toast('名称不能为空'); return; }
+  var s=fromDateTime($('dSd').value,$('dSt').value);
+  var e=fromDateTime($('dEd').value,$('dEt').value);
+  if(!isFinite(s)||!isFinite(e)){ toast('请填写开始和结束时间'); return; }
+  if(e<=s){ toast('结束需晚于开始'); return; }
+  var hit=taskOverlapOnLine(editLine,s,e,editTask.id);
+  if(hit){ toast('与「'+hit.name+'」在'+(store.lines[editLine].name||('Line'+(editLine+1)))+'上重叠'); return; }
+  editTask.name=name; editTask.color=editColor; editTask.line=editLine;
+  editTask.start=s; editTask.end=e;
+  save(); render();
+  $('detailOverlay').classList.remove('show');
+  toast('已保存');
+});
+$('dDelete').addEventListener('click',function(){
+  if(!confirm('确定删除任务「'+editTask.name+'」吗？')) return;
+  store.tasks=store.tasks.filter(function(t){return t.id!==editTask.id;});
+  save(); render();
+  $('detailOverlay').classList.remove('show');
+  toast('已删除');
+});
+
+/* ================= line rename ================= */
+var lpTimer=null;
+document.querySelectorAll('.laneLabel').forEach(function(lb){
+  var line=+lb.dataset.line;
+  lb.addEventListener('touchstart',function(){
+    lpTimer=setTimeout(function(){ renameLine(line); },550);
+  },{passive:true});
+  lb.addEventListener('touchend',function(){ clearTimeout(lpTimer); });
+  lb.addEventListener('touchmove',function(){ clearTimeout(lpTimer); });
+  lb.addEventListener('contextmenu',function(e){ e.preventDefault(); renameLine(line); });
+  lb.addEventListener('dblclick',function(){ renameLine(line); });
+});
+function renameLine(i){
+  var name=prompt('给这条线起个名字（留空恢复 Line'+(i+1)+'）：',store.lines[i].name);
+  if(name===null) return;
+  store.lines[i].name=name.trim()||('Line'+(i+1));
+  save(); refreshLineLabels();
+}
+function refreshLineLabels(){
+  document.querySelectorAll('.laneLabel').forEach(function(lb){
+    var i=+lb.dataset.line;
+    lb.querySelector('span').textContent=store.lines[i].name;
+  });
+}
+
+/* ================= calendar ================= */
+var calY, calM, calSel;
+function openCal(){
+  var d=new Date();
+  calY=d.getFullYear(); calM=d.getMonth(); calSel=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+  $('calOverlay').classList.add('show');
+  renderCal();
+}
+$('btnCal').addEventListener('click',openCal);
+$('dateLabel').addEventListener('click',openCal);
+$('calPrev').addEventListener('click',function(){ calM--; if(calM<0){calM=11;calY--;} renderCal(); });
+$('calNext').addEventListener('click',function(){ calM++; if(calM>11){calM=0;calY++;} renderCal(); });
+function renderCal(){
+  $('calTitle').textContent=calY+'年'+(calM+1)+'月';
+  var grid=$('calGrid'); grid.innerHTML='';
+  ['日','一','二','三','四','五','六'].forEach(function(w){
+    var d=document.createElement('div'); d.className='wd'; d.textContent=w; grid.appendChild(d);
+  });
+  var first=new Date(calY,calM,1).getDay();
+  var dim=new Date(calY,calM+1,0).getDate();
+  var prevDim=new Date(calY,calM,0).getDate();
+  var todayKey=dayKey(Date.now());
+  for(var i=0;i<42;i++){
+    var dayNum, dt, cls='day', inMonth=true;
+    if(i<first){ dayNum=prevDim-first+1+i; dt=new Date(calY,calM-1,dayNum); inMonth=false; }
+    else if(i>=first+dim){ dayNum=i-first-dim+1; dt=new Date(calY,calM+1,dayNum); inMonth=false; }
+    else { dayNum=i-first+1; dt=new Date(calY,calM,dayNum); }
+    if(!inMonth) cls+=' dim';
+    var kt=dt.getTime();
+    if(dayKey(kt)===todayKey) cls+=' today';
+    if(kt===calSel) cls+=' sel';
+    var cell=document.createElement('div');
+    cell.className=cls;
+    var hasTask=store.tasks.some(function(t){return dayKey(t.start)===dayKey(kt);});
+    cell.innerHTML='<span>'+dayNum+'</span>'+(hasTask?'<span class="dot"></span>':'');
+    (function(kt2){
+      cell.addEventListener('click',function(){ calSel=kt2; renderCal(); jumpToDay(kt2); });
+    })(kt);
+    grid.appendChild(cell);
+  }
+  renderDayList();
+}
+function renderDayList(){
+  var box=$('dayList');
+  var list=store.tasks.filter(function(t){return dayKey(t.start)===dayKey(calSel);})
+    .sort(function(a,b){return a.start-b.start;});
+  var h='<h4>'+fmtDate(calSel)+' '+weekCN(calSel)+' 的任务（'+list.length+'）</h4>';
+  if(!list.length) h+='<div class="empty">这一天还没有任务，点击任务可跳转定位</div>';
+  list.forEach(function(t){
+    h+='<div class="item" data-id="'+t.id+'"><span class="cd" style="background:'+t.color+'"></span>'+
+       '<span class="nm">'+escHTML(t.name)+'</span><span class="tm">'+fmtHM(t.start)+'–'+fmtHM(t.end)+'</span></div>';
+  });
+  box.innerHTML=h;
+  box.querySelectorAll('.item').forEach(function(it){
+    it.addEventListener('click',function(){
+      var t=store.tasks.find(function(q){return q.id==it.dataset.id;});
+      if(!t) return;
+      $('calOverlay').classList.remove('show');
+      view.center=t.start; render();
+      var el=barEls[t.id];
+      if(el){ el.classList.add('pulse'); setTimeout(function(){el.classList.remove('pulse');},2100); }
+    });
+  });
+}
+function jumpToDay(ms){
+  view.center=new Date(ms).setHours(12,0,0,0);
+  render();
+}
+function escHTML(s){ return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+/* ================= export / import ================= */
+$('btnExport').addEventListener('click',function(){
+  var blob=new Blob([JSON.stringify(store,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='timeline-backup-'+toDateInput(Date.now()).replace(/-/g,'')+'.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
+  toast('已导出备份文件');
+});
+$('btnImport').addEventListener('click',function(){ $('importFile').click(); });
+$('importFile').addEventListener('change',function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var d=JSON.parse(r.result);
+      if(!d||d.v!==1||!Array.isArray(d.tasks)) throw 0;
+      if(!confirm('导入将覆盖当前全部数据（'+d.tasks.length+' 个任务），继续？')) return;
+      store=d; save(); refreshLineLabels(); render(); renderCal();
+      toast('导入成功');
+    }catch(err){ toast('文件格式不正确'); }
+  };
+  r.readAsText(f);
+  e.target.value='';
+});
+
+/* ================= nav buttons ================= */
+$('prevDay').addEventListener('click',function(){ view.center-=24*3600000; render(); });
+$('nextDay').addEventListener('click',function(){ view.center+=24*3600000; render(); });
+$('btnToday').addEventListener('click',function(){ view.center=Date.now(); render(); });
+$('zoomIn').addEventListener('click',function(){ zoomAt(1.6); });
+$('zoomOut').addEventListener('click',function(){ zoomAt(1/1.6); });
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click',function(){ $(b.dataset.close).classList.remove('show'); });
+});
+document.querySelectorAll('.overlay').forEach(function(o){
+  o.addEventListener('click',function(e){ if(e.target===o) o.classList.remove('show'); });
+});
+
+/* ================= boot ================= */
+window.addEventListener('resize',function(){ render(); });
+document.addEventListener('gesturestart',function(e){ e.preventDefault(); }); /* iOS page zoom */
+load();
+render();
+setInterval(function(){ renderNow(); renderHeader(); },30000);
+</script>
+</body>
+</html>
