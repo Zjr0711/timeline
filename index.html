@@ -21,7 +21,8 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   :root{
     --bg:#f7f7f8; --panel:#ffffff; --ink:#1c1c1e; --sub:#8e8e93;
     --axis:#111114; --grid:#e4e4e8; --line:#d9d9de; --danger:#dc2626;
-    --laneH:72px; --rulerH:36px; --labelColW:58px;
+    --laneH:72px; --rulerH:36px; --labelColW:58px; --dockW:64px;
+    --ios-shadow:0 4px 16px rgba(28,28,30,.08);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
@@ -39,13 +40,18 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   header{
     flex:0 0 auto; display:flex; align-items:center; gap:4px;
     padding:calc(env(safe-area-inset-top) + 8px) 10px 8px;
-    background:var(--panel); border-bottom:1px solid var(--line); z-index:20;
+    background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);z-index:20;
+    box-shadow:0 2px 12px rgba(28,28,30,.04);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
   }
   header .navBtn{
     width:36px;height:36px;border-radius:10px;font-size:20px;line-height:1;
     display:flex;align-items:center;justify-content:center;color:var(--sub);
   }
   header .navBtn:active{background:#eee;}
+  header .layoutToggle{font-size:21px;color:var(--ink);}
+  header .layoutToggle[aria-pressed="true"]{background:#f0f0f3;color:var(--ink);}
+  header .layoutToggle:focus-visible, footer button:focus-visible{outline:2px solid #2f6fed;outline-offset:2px;}
   #dateLabel{
     flex:1;text-align:center;font-size:16px;font-weight:600;
     display:flex;flex-direction:column;gap:1px;
@@ -70,6 +76,9 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   .laneLabel small{font-size:9px;color:var(--sub);font-weight:400;}
   #tlWrap{flex:1 1 auto; position:relative; overflow:hidden; background:var(--bg);}
   #tl{position:absolute; inset:0; touch-action:none;}
+  #tlWrap,#labelCol,main{transition:margin-right .22s ease,background .22s ease;}
+  .dockIcon{display:inline-flex;align-items:center;justify-content:center;line-height:1;}
+  .dockText{display:inline-block;}
   #ruler{position:absolute;top:0;left:0;right:0;height:var(--rulerH);
     border-bottom:1px solid var(--line);background:var(--panel);}
   .tick{position:absolute;bottom:0;width:1px;background:var(--grid);pointer-events:none;}
@@ -89,12 +98,13 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   /* ---------- task bars ---------- */
   .bar{
     position:absolute;height:20px;border-radius:10px;background:var(--c,#2f6fed);
-    box-shadow:0 1px 3px rgba(0,0,0,.25); z-index:5;
+    box-shadow:0 2px 5px rgba(0,0,0,.22); z-index:5;
+    transition:box-shadow .16s ease,filter .16s ease;
   }
   .bar .barName{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    color:#fff;font-size:10px;font-weight:600;padding:0 14px;
-    white-space:nowrap;overflow:hidden;pointer-events:none;
+    color:#fff;font-size:11px;font-weight:650;padding:0 14px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
   }
   .bar .tl-label{
     position:absolute;font-size:10px;font-weight:600;color:var(--c,#2f6fed);
@@ -105,14 +115,14 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   .bar.labels-top .tl-label{bottom:calc(100% + 4px);}
   .bar.labels-bottom .tl-label{top:calc(100% + 4px);}
   .bar .h{
-    position:absolute;top:-4px;bottom:-4px;width:20px;z-index:6;
+    position:absolute;top:-7px;bottom:-7px;width:26px;z-index:6;
     display:flex;align-items:center;justify-content:center;
   }
   .bar .h::before{
     content:"";width:4px;height:12px;border-radius:2px;
     background:rgba(255,255,255,.85);box-shadow:0 0 0 1px rgba(0,0,0,.15);
   }
-  .bar .h.l{left:-6px;} .bar .h.r{right:-6px;}
+  .bar .h.l{left:-9px;} .bar .h.r{right:-9px;}
   .bar.dragging{z-index:30;box-shadow:0 6px 16px rgba(0,0,0,.35);transform:scale(1.03);}
   .bar.pulse{animation:pulse 1s ease-out 2;}
   @keyframes pulse{
@@ -137,16 +147,36 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   footer{
     flex:0 0 auto;display:flex;gap:8px;align-items:center;
     padding:8px 12px calc(env(safe-area-inset-bottom) + 10px);
-    background:var(--panel);border-top:1px solid var(--line);z-index:20;
+    background:rgba(255,255,255,.94);border-top:1px solid var(--line);z-index:20;
+    box-shadow:0 -4px 16px rgba(28,28,30,.04);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);transition:all .22s ease;
   }
   footer button{
     height:42px;border-radius:12px;font-size:14px;font-weight:600;
-    background:#f0f0f3;color:var(--ink);
+    background:#f0f0f3;color:var(--ink);box-shadow:0 1px 2px rgba(28,28,30,.04);
+    transition:background .18s ease,transform .18s ease,box-shadow .18s ease;
   }
-  footer button:active{background:#e2e2e7;}
-  #btnAdd{flex:1;background:var(--ink);color:#fff;font-size:15px;}
+  footer button:active{background:#e2e2e7;transform:scale(.97);}
+  #btnAdd{flex:1;background:var(--ink);color:#fff;font-size:15px;box-shadow:var(--ios-shadow);}
   #btnToday{padding:0 14px;}
   .zoomBtn{width:42px;font-size:20px;}
+
+  /* ---------- landscape action dock ---------- */
+  body.layout-landscape main{margin-right:var(--dockW);}
+  body.layout-landscape footer{
+    position:fixed;right:0;top:calc(env(safe-area-inset-top) + 52px);bottom:env(safe-area-inset-bottom);
+    width:var(--dockW);padding:10px 8px;display:flex;flex-direction:column;gap:10px;
+    border-top:0;border-left:1px solid var(--line);box-shadow:-4px 0 16px rgba(28,28,30,.06);
+  }
+  body.layout-landscape footer button,
+  body.layout-landscape #btnAdd,
+  body.layout-landscape #btnToday,
+  body.layout-landscape .zoomBtn{width:48px;height:48px;flex:0 0 48px;padding:0;border-radius:14px;font-size:22px;}
+  body.layout-landscape #btnAdd{background:var(--ink);}
+  body.layout-landscape .dockText{display:none;}
+  body.layout-landscape .dockIcon{width:100%;height:100%;}
+  body.layout-landscape footer button:active{transform:scale(.93);}
+  body.layout-landscape #btnToday .dockIcon{font-size:24px;}
 
   /* ---------- overlays ---------- */
   .overlay{
@@ -235,6 +265,19 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     overflow:hidden;text-overflow:ellipsis;
   }
   #toast.show{opacity:1;}
+
+  @media (max-width:700px) and (orientation:landscape){
+    :root{--dockW:60px;--labelColW:52px;}
+    header{padding-left:6px;padding-right:6px;}
+    header .navBtn{width:32px;height:34px;}
+    #dateLabel{font-size:14px;}
+    #dateLabel small{font-size:9px;}
+    body.layout-landscape footer{padding-left:6px;padding-right:6px;}
+    body.layout-landscape footer button,
+    body.layout-landscape #btnAdd,
+    body.layout-landscape #btnToday,
+    body.layout-landscape .zoomBtn{width:46px;height:46px;flex-basis:46px;}
+  }
 </style>
 </head>
 <body>
@@ -243,7 +286,8 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   <button class="navBtn" id="prevDay">‹</button>
   <div id="dateLabel"><span id="dateMain">—</span><small id="dateSub"></small></div>
   <button class="navBtn" id="nextDay">›</button>
-  <button class="navBtn" id="btnCal">📅</button>
+  <button class="navBtn" id="btnCal" aria-label="打开日历">📅</button>
+  <button class="navBtn layoutToggle" id="btnLayout" aria-label="切换到横屏布局" aria-pressed="false" title="切换横屏布局"><span id="layoutIcon" aria-hidden="true">▯</span></button>
 </header>
 
 <main>
@@ -267,11 +311,11 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   </div>
 </main>
 
-<footer>
-  <button id="btnAdd">＋ 添加任务</button>
-  <button id="btnToday">现在</button>
-  <button class="zoomBtn" id="zoomOut">－</button>
-  <button class="zoomBtn" id="zoomIn">＋</button>
+<footer id="actionDock" aria-label="时间轴操作">
+  <button id="btnAdd" aria-label="添加任务"><span class="dockIcon" aria-hidden="true">＋</span><span class="dockText">添加任务</span></button>
+  <button id="btnToday" aria-label="回到现在"><span class="dockIcon" aria-hidden="true">⌖</span><span class="dockText">现在</span></button>
+  <button class="zoomBtn" id="zoomOut" aria-label="缩小时间轴"><span class="dockIcon" aria-hidden="true">－</span><span class="dockText">缩小</span></button>
+  <button class="zoomBtn" id="zoomIn" aria-label="放大时间轴"><span class="dockIcon" aria-hidden="true">＋</span><span class="dockText">放大</span></button>
 </footer>
 
 <!-- add sheet -->
@@ -360,6 +404,8 @@ var store = {
   seq: 1
 };
 var view = { center: Date.now(), pxPerHour: 90 };
+var layoutMode = null;               /* 'portrait' or 'landscape' */
+var LAYOUT_KEY = 'timeline-layout.v1';
 var cw = 300;                       /* timeline area width in px */
 var barEls = {};                    /* id -> element */
 var ghost = null;                   /* {name,dur,color,line,start} */
@@ -428,6 +474,28 @@ function findPlacement(prefLine,s,dur){
 
 /* ================= persistence ================= */
 var LS_KEY='timeline3lines.v1';
+function defaultLayout(){
+  return window.matchMedia && window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait';
+}
+function applyLayout(mode, persist){
+  layoutMode = mode === 'landscape' ? 'landscape' : 'portrait';
+  document.body.classList.toggle('layout-landscape', layoutMode === 'landscape');
+  var btn=$('btnLayout'), icon=$('layoutIcon');
+  if(btn){
+    var isLand=layoutMode === 'landscape';
+    btn.setAttribute('aria-pressed',String(isLand));
+    btn.setAttribute('aria-label',isLand?'切换到竖屏布局':'切换到横屏布局');
+    btn.setAttribute('title',isLand?'切换竖屏布局':'切换横屏布局');
+    if(icon) icon.textContent=isLand?'▭':'▯';
+  }
+  if(persist){ try{ localStorage.setItem(LAYOUT_KEY,layoutMode); }catch(e){} }
+  requestAnimationFrame(function(){ render(); });
+}
+function loadLayout(){
+  var saved=null;
+  try{ saved=localStorage.getItem(LAYOUT_KEY); }catch(e){}
+  applyLayout(saved==='portrait'||saved==='landscape' ? saved : defaultLayout(), false);
+}
 function save(){
   try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }
   catch(e){ toast('保存失败：存储空间不足'); }
@@ -450,16 +518,20 @@ function load(){
 function pxPerMs(){ return view.pxPerHour/3600000; }
 function xOf(t){ return (t-view.center)*pxPerMs() + cw/2; }
 function tOf(x){ return view.center + (x-cw/2)/pxPerMs(); }
+function timelineWidth(){
+  return Math.max(cw || ($('tl') && $('tl').clientWidth) || window.innerWidth-58,100);
+}
 function clampZoom(){
-  var w=Math.max(window.innerWidth - 58, 100);
+  var w=timelineWidth();
   var lo=w/(HOUR_PER_SCR_MIN*3600000), hi=w/(HOUR_PER_SCR_MAX*3600000); /* px per ms */
   view.pxPerHour = clamp(view.pxPerHour, lo*3600000, hi*3600000);
 }
 function zoomAt(factor, anchorX){
   var anchorT=tOf(anchorX===undefined? cw/2 : anchorX);
+  var w=timelineWidth();
   view.pxPerHour=clamp(view.pxPerHour*factor,
-    (Math.max(window.innerWidth-58,100)/(HOUR_PER_SCR_MIN*3600000))*3600000,
-    (Math.max(window.innerWidth-58,100)/(HOUR_PER_SCR_MAX*3600000))*3600000);
+    (w/(HOUR_PER_SCR_MIN*3600000))*3600000,
+    (w/(HOUR_PER_SCR_MAX*3600000))*3600000);
   var ax=(anchorX===undefined? cw/2 : anchorX);
   view.center = anchorT - (ax-cw/2)/pxPerMs();
   render();
@@ -467,8 +539,8 @@ function zoomAt(factor, anchorX){
 
 /* ================= render ================= */
 function render(){
-  clampZoom();
   cw = $('tl').clientWidth;
+  clampZoom();
   renderHeader();
   renderRuler();
   renderBars();
@@ -1027,6 +1099,10 @@ $('importFile').addEventListener('change',function(e){
 });
 
 /* ================= nav buttons ================= */
+$('btnLayout').addEventListener('click',function(){
+  applyLayout(layoutMode==='landscape'?'portrait':'landscape',true);
+  toast(layoutMode==='landscape'?'已切换横屏布局':'已切换竖屏布局');
+});
 $('prevDay').addEventListener('click',function(){ view.center-=24*3600000; render(); });
 $('nextDay').addEventListener('click',function(){ view.center+=24*3600000; render(); });
 $('btnToday').addEventListener('click',function(){ view.center=Date.now(); render(); });
@@ -1041,7 +1117,9 @@ document.querySelectorAll('.overlay').forEach(function(o){
 
 /* ================= boot ================= */
 window.addEventListener('resize',function(){ render(); });
+window.addEventListener('orientationchange',function(){ setTimeout(function(){ render(); },120); });
 document.addEventListener('gesturestart',function(e){ e.preventDefault(); }); /* iOS page zoom */
+loadLayout();
 load();
 render();
 setInterval(function(){ renderNow(); renderHeader(); },30000);
