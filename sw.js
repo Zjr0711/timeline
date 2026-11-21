@@ -1,5 +1,5 @@
 /* 时间轴 Service Worker：离线缓存，秒开 */
-var CACHE = 'timeline-v5';
+var CACHE = 'timeline-v6';
 var ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', function (e) {

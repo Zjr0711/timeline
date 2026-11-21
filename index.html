@@ -66,7 +66,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   #dateLabel{
     flex:1;text-align:center;display:flex;flex-direction:column;gap:2px;min-width:0;
   }
-  #dateMain{font-size:16.5px;font-weight:700;letter-spacing:.2px;}
+  #dateMain{font-size:15px;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #dateSub{font-size:10px;color:var(--sub);}
 
   /* ---------- board ---------- */
@@ -325,6 +325,48 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   .liEmpty{padding:26px 6px; text-align:center; font-size:12.5px; color:var(--sub);}
   #listFootHint{font-size:10px; color:var(--dimDay); text-align:center; margin-top:12px;}
 
+  /* ---------- task pool ---------- */
+  #listTabs{display:flex; gap:2px; background:var(--softBg); border-radius:13px; padding:3px; margin-bottom:14px;}
+  #listTabs button{flex:1; height:32px; border-radius:10px; font-size:12.5px; color:var(--sub); font-weight:600;}
+  #listTabs button.on{background:var(--panel); color:var(--ink); box-shadow:0 2px 8px rgba(23,24,29,.1);}
+  #poolTabs{display:flex; gap:2px; background:var(--softBg); border-radius:11px; padding:2px; margin-bottom:10px;}
+  #poolTabs button{flex:1; height:28px; border-radius:9px; font-size:11.5px; color:var(--sub); font-weight:600;}
+  #poolTabs button.on{background:var(--panel); color:var(--ink); box-shadow:0 1px 5px rgba(23,24,29,.08);}
+  #poolAddBtn{width:100%; height:40px; border-radius:13px; background:var(--inputBg); color:var(--accent); font-size:13px; font-weight:700; margin-bottom:12px;}
+  #poolForm{background:var(--softBg); border-radius:14px; padding:12px; margin-bottom:12px; display:none;}
+  #poolForm.show{display:block;}
+  .pRow{display:flex; gap:8px; margin-bottom:8px; align-items:flex-end;}
+  .pRow .field{margin-bottom:0;}
+  .chip{height:36px; padding:0 12px; border-radius:13px; background:var(--chipBg); color:var(--sub); font-size:12px; font-weight:600;}
+  .chip:active{background:var(--accent); color:#fff;}
+  #poolActive{border-top:1px solid var(--line);}
+  .poolItem{display:flex; align-items:center; gap:9px; padding:11px 2px; border-bottom:1px solid var(--grid);}
+  .poolItem:last-child{border-bottom:none;}
+  .poolItem .pDot{width:9px; height:9px; border-radius:3px; flex:0 0 auto;}
+  .poolItem .pName{font-size:14px; font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .poolItem.done-item .pName{opacity:.4;}
+  .poolItem .chk{margin-top:0;}
+  .pBadge{font-size:9.5px; font-weight:600; padding:2px 7px; border-radius:8px; background:var(--chipBg); color:var(--sub); white-space:nowrap; flex:0 0 auto;}
+  .pBadge.due{background:rgba(245,179,1,.18); color:#b57d00;}
+  body.dark .pBadge.due{color:#ffcf4d;}
+  .pBadge.overdue{background:rgba(255,59,48,.14); color:var(--danger);}
+  .pBadge.ok{background:rgba(49,196,141,.16); color:#1d9d6f;}
+  body.dark .pBadge.ok{color:#4ade80;}
+  .pBtn{height:28px; padding:0 11px; border-radius:9px; background:var(--inputBg); color:var(--accent); font-size:11px; font-weight:700; flex:0 0 auto;}
+  .pBtn.check{color:#1d9d6f;}
+  body.dark .pBtn.check{color:#4ade80;}
+  .pX{width:26px; height:26px; border-radius:9px; color:var(--dimDay); font-size:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .poolDoneHead{display:flex; align-items:center; justify-content:space-between; margin:14px 0 2px; border-top:1px solid var(--line); padding-top:12px;}
+  .poolDoneHead h4{font-size:11.5px; color:var(--sub); font-weight:600;}
+  #poolClear{font-size:11px; color:var(--danger); font-weight:600; padding:4px 8px;}
+  #poolEmpty{padding:22px 6px; text-align:center; font-size:12.5px; color:var(--sub); line-height:1.7;}
+  #listFootHint2{font-size:10px; color:var(--dimDay); text-align:center; margin-top:12px;}
+  #schedOverlay{z-index:120;}
+  #schedName{font-size:12px; color:var(--sub); margin:-6px 0 12px;}
+  #sLineRow{display:flex; gap:8px; margin-bottom:12px;}
+  #sLineRow button{flex:1; height:38px; border-radius:12px; background:var(--inputBg); font-size:12.5px; font-weight:600; color:var(--sub);}
+  #sLineRow button.on{background:var(--ink); color:var(--panel);}
+
   /* toast */
   #toast{
     position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 92px); transform:translateX(-50%);
@@ -343,7 +385,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   <button class="navBtn" id="prevDay" aria-label="前一天">‹</button>
   <div id="dateLabel"><span id="dateMain">—</span><small id="dateSub"></small></div>
   <button class="navBtn" id="nextDay" aria-label="后一天">›</button>
-  <button class="navBtn" id="btnList" aria-label="任务清单">📋</button>
+  <button class="navBtn" id="btnList" aria-label="任务清单与任务池">📋</button>
   <button class="navBtn" id="btnCal" aria-label="打开日历">📅</button>
   <button class="navBtn" id="btnTheme" aria-label="切换暗黑模式">🌙</button>
 </header>
@@ -434,17 +476,67 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   </div>
 </div>
 
-<!-- task list -->
+<!-- task list / pool -->
 <div class="overlay" id="listOverlay">
   <div class="sheet">
     <h3>任务清单 <button class="x" data-close="listOverlay">✕</button></h3>
-    <div id="listHead">
-      <button class="navBtn" id="listPrev">‹</button>
-      <div class="mid"><b id="listTitle">—</b><small id="listSub"></small></div>
-      <button class="navBtn" id="listNext">›</button>
+    <div id="listTabs">
+      <button data-ltab="day" class="on">当日清单</button>
+      <button data-ltab="pool">任务池</button>
     </div>
-    <div id="listBody"></div>
-    <div id="listFootHint">点圆圈打勾 · 点文字编辑任务</div>
+    <div id="pageList">
+      <div id="listHead">
+        <button class="navBtn" id="listPrev">‹</button>
+        <div class="mid"><b id="listTitle">—</b><small id="listSub"></small></div>
+        <button class="navBtn" id="listNext">›</button>
+      </div>
+      <div id="listBody"></div>
+      <div id="listFootHint">点圆圈打勾 · 点文字编辑任务</div>
+    </div>
+    <div id="pagePool" style="display:none">
+      <div id="poolTabs">
+        <button data-ptab="once" class="on">⏱ 一次性</button>
+        <button data-ptab="long">🔁 长期</button>
+      </div>
+      <button id="poolAddBtn">＋ 加入池子</button>
+      <div id="poolForm">
+        <div class="frow"><div class="field" style="flex:2"><label>任务名称 *</label><input id="pName" placeholder="例如：拿快递"></div></div>
+        <div class="pRow" id="pOnceFields">
+          <div class="field"><label>日期（可空）</label><input type="date" id="pDate"></div>
+          <div class="field" style="flex:0 0 auto"><label>&nbsp;</label><button class="chip" id="pTomorrow" type="button">明天</button></div>
+        </div>
+        <div class="pRow" id="pLongFields" style="display:none">
+          <div class="field"><label>总天数（可空，如 35）</label><input type="number" id="pDays" min="1" inputmode="numeric" placeholder="不限则只计次数"></div>
+        </div>
+        <button class="primary" id="pAdd" style="margin-top:2px">加入池子</button>
+      </div>
+      <div id="poolActive"></div>
+      <div id="poolDoneWrap" style="display:none">
+        <div class="poolDoneHead"><h4>已完成（<span id="poolDoneN">0</span>）</h4><button id="poolClear">清空</button></div>
+        <div id="poolDone"></div>
+      </div>
+      <div id="poolEmpty" style="display:none">池子是空的<br>把想到的事先放进来，之后再安排到时间轴</div>
+      <div id="listFootHint2">一次性可标日期 · 长期可打卡计数 · 「安排」一键放上时间轴</div>
+    </div>
+  </div>
+</div>
+
+<!-- schedule pool item -->
+<div class="overlay" id="schedOverlay">
+  <div class="sheet">
+    <h3>安排到时间轴 <button class="x" data-close="schedOverlay">✕</button></h3>
+    <div id="schedName"></div>
+    <div class="frow">
+      <div class="field"><label>日期</label><input type="date" id="sDate"></div>
+      <div class="field"><label>开始时间</label><input type="time" id="sTime"></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>时长（小时）</label><input type="number" id="sDurH" min="0" inputmode="numeric" placeholder="1"></div>
+      <div class="field"><label>时长（分钟）</label><input type="number" id="sDurM" min="0" max="59" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field" style="margin-bottom:8px"><label>放到哪条线</label></div>
+    <div id="sLineRow"></div>
+    <button class="primary" id="sConfirm">确认安排</button>
   </div>
 </div>
 
@@ -481,6 +573,9 @@ var store = {
   v: 1,
   lines: [{name:'Line1'},{name:'Line2'},{name:'Line3'}],
   tasks: [],   /* {id,name,line,start,end,color,done} start/end = ms epoch */
+  pool: [],    /* {id,type:'once'|'long',name,color,done,
+                   once: due(ms,0=无日期)
+                   long: totalDays(0=不限), checkins:[ms...]} */
   seq: 1
 };
 var view = { center: Date.now(), pxPerHour: 110 };
@@ -568,6 +663,7 @@ function load(){
     if(d && d.v===1 && Array.isArray(d.tasks)){
       store.lines=d.lines||store.lines;
       store.tasks=d.tasks;
+      store.pool=Array.isArray(d.pool)?d.pool:[];
       store.seq=d.seq||store.tasks.length+1;
       refreshLineLabels();
     }
@@ -1085,14 +1181,31 @@ $('dDelete').addEventListener('click',function(){
   toast('已删除');
 });
 
-/* ================= task list sheet ================= */
+/* ================= task list sheet / task pool ================= */
 var listDate=dayStart(Date.now());
+var listTab='day', poolTab='once';
+var schedItem=null, schedLine=1;
+
 function openList(){
-  listDate=dayStart(view.center);
   $('listOverlay').classList.add('show');
-  renderList();
+  renderListSheet();
 }
 $('btnList').addEventListener('click',openList);
+document.querySelectorAll('#listTabs button').forEach(function(b){
+  b.addEventListener('click',function(){ listTab=b.dataset.ltab; renderListSheet(); });
+});
+document.querySelectorAll('#poolTabs button').forEach(function(b){
+  b.addEventListener('click',function(){ poolTab=b.dataset.ptab; renderPool(); });
+});
+function renderListSheet(){
+  document.querySelectorAll('#listTabs button').forEach(function(b){
+    b.classList.toggle('on', b.dataset.ltab===listTab);
+  });
+  $('pageList').style.display = listTab==='day' ? 'block' : 'none';
+  $('pagePool').style.display = listTab==='pool' ? 'block' : 'none';
+  if(listTab==='day'){ listDate=dayStart(view.center); renderList(); }
+  else renderPool();
+}
 $('listPrev').addEventListener('click',function(){ listDate-=86400000; renderList(); });
 $('listNext').addEventListener('click',function(){ listDate+=86400000; renderList(); });
 function renderList(){
@@ -1135,6 +1248,159 @@ function renderList(){
     });
   });
 }
+
+/* ================= task pool logic ================= */
+function poolBadge(item){
+  if(item.type==='once'){
+    if(!item.due) return '';
+    var diff=Math.round((dayStart(item.due)-dayStart(Date.now()))/86400000);
+    if(diff===0) return '<span class="pBadge due">今天</span>';
+    if(diff===1) return '<span class="pBadge">明天</span>';
+    if(diff<0) return '<span class="pBadge overdue">逾期'+(-diff)+'天</span>';
+    return '<span class="pBadge">'+fmtMD(item.due)+'</span>';
+  }
+  var n=item.checkins.length;
+  if(item.totalDays) return '<span class="pBadge'+(n>=item.totalDays?' ok':'')+'">'+n+'/'+item.totalDays+' 天</span>';
+  return '<span class="pBadge">打卡 '+n+' 次</span>';
+}
+function poolRow(item, doneSection){
+  var controls;
+  if(doneSection){
+    controls='<button class="pX" data-act="del">✕</button>';
+  }else{
+    controls=(item.type==='long'
+        ? '<button class="pBtn check" data-act="checkin">打卡</button><button class="pBtn" data-act="sched">安排</button>'
+        : '<button class="pBtn" data-act="sched">安排</button>')
+      +'<button class="chk'+(item.done?' done':'')+'" data-act="toggle">✓</button>'
+      +'<button class="pX" data-act="del">✕</button>';
+  }
+  return '<div class="poolItem'+(item.done?' done-item':'')+'" data-id="'+item.id+'">'+
+    '<span class="pDot" style="background:'+item.color+'"></span>'+
+    '<span class="pName">'+escHTML(item.name)+'</span>'+
+    poolBadge(item)+controls+'</div>';
+}
+function bindPoolEvents(box){
+  box.querySelectorAll('.poolItem').forEach(function(row){
+    var item=store.pool.find(function(p){return p.id===+row.dataset.id;});
+    if(!item) return;
+    row.querySelectorAll('[data-act]').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var act=btn.dataset.act;
+        if(act==='toggle'){
+          item.done=!item.done; save(); renderPool();
+        }else if(act==='del'){
+          if(confirm('从池子删除「'+item.name+'」？')){
+            store.pool=store.pool.filter(function(p){return p!==item;});
+            save(); renderPool();
+          }
+        }else if(act==='checkin'){
+          item.checkins.push(Date.now()); save(); renderPool();
+          toast('已打卡 '+item.checkins.length+(item.totalDays?'/'+item.totalDays:'')+' 次');
+        }else if(act==='sched'){
+          openSched(item);
+        }
+      });
+    });
+  });
+}
+function renderPool(){
+  $('pOnceFields').style.display = poolTab==='once' ? 'flex' : 'none';
+  $('pLongFields').style.display = poolTab==='long' ? 'flex' : 'none';
+  document.querySelectorAll('#poolTabs button').forEach(function(b){
+    b.classList.toggle('on', b.dataset.ptab===poolTab);
+  });
+  var act=store.pool.filter(function(p){return p.type===poolTab && !p.done;});
+  var done=store.pool.filter(function(p){return p.type===poolTab && p.done;});
+  if(poolTab==='once'){
+    act.sort(function(a,b){ return (a.due||Infinity)-(b.due||Infinity); });
+  }
+  $('poolActive').innerHTML = act.map(function(p){return poolRow(p,false);}).join('');
+  var emptyShown = !act.length && !done.length;
+  $('poolEmpty').style.display = emptyShown ? 'block' : 'none';
+  $('poolDoneWrap').style.display = done.length ? 'block' : 'none';
+  $('poolDoneN').textContent = done.length;
+  $('poolDone').innerHTML = done.map(function(p){return poolRow(p,true);}).join('');
+  bindPoolEvents($('poolActive'));
+  bindPoolEvents($('poolDone'));
+}
+
+/* add to pool */
+$('poolAddBtn').addEventListener('click',function(){
+  var f=$('poolForm');
+  if(!f.classList.contains('show')){
+    f.classList.add('show');
+    $('pName').value=''; $('pDate').value=''; $('pDays').value='';
+    setTimeout(function(){$('pName').focus();},100);
+  }else{
+    f.classList.remove('show');
+  }
+});
+$('pTomorrow').addEventListener('click',function(){
+  $('pDate').value=toDateInput(tomorrowNoon());
+});
+$('pAdd').addEventListener('click',function(){
+  var name=$('pName').value.trim();
+  if(!name){ toast('请先填写任务名称'); return; }
+  var item;
+  if(poolTab==='once'){
+    var due=$('pDate').value ? fromDateTime($('pDate').value,'00:00') : 0;
+    if(!isFinite(due)) due=0;
+    item={id:store.seq++,type:'once',name:name,color:PALETTE[(store.tasks.length+store.pool.length)%PALETTE.length],done:false,due:due};
+  }else{
+    var days=parseInt($('pDays').value,10)||0;
+    item={id:store.seq++,type:'long',name:name,color:PALETTE[(store.tasks.length+store.pool.length)%PALETTE.length],done:false,totalDays:days,checkins:[]};
+  }
+  store.pool.push(item);
+  save(); renderPool();
+  $('poolForm').classList.remove('show');
+  toast('已加入池子：'+name);
+});
+$('poolClear').addEventListener('click',function(){
+  var n=store.pool.filter(function(p){return p.done;}).length;
+  if(!n) return;
+  if(!confirm('清空 '+n+' 个已完成的池子任务？')) return;
+  store.pool=store.pool.filter(function(p){return !p.done;});
+  save(); renderPool();
+});
+
+/* schedule pool item onto timeline */
+function openSched(item){
+  schedItem=item; schedLine=1;
+  $('schedName').textContent = '「'+item.name+'」'+
+    (item.type==='long' ? '每安排一次自动记一次打卡' : '安排后将从池子标记为完成');
+  var defDate = planTomorrow ? tomorrowNoon()
+              : (item.type==='once' && item.due ? item.due : Date.now());
+  $('sDate').value=toDateInput(defDate);
+  $('sTime').value=planTomorrow ? '08:00' : toTimeInput(Date.now());
+  $('sDurH').value='1'; $('sDurM').value='0';
+  buildSLineRow();
+  $('schedOverlay').classList.add('show');
+}
+function buildSLineRow(){
+  var row=$('sLineRow'); row.innerHTML='';
+  store.lines.forEach(function(l,i){
+    var b=document.createElement('button');
+    b.textContent=l.name||('Line'+(i+1));
+    b.className=i===schedLine?'on':'';
+    b.addEventListener('click',function(){ schedLine=i; buildSLineRow(); });
+    row.appendChild(b);
+  });
+}
+$('sConfirm').addEventListener('click',function(){
+  if(!schedItem) return;
+  var s=fromDateTime($('sDate').value||toDateInput(Date.now()),$('sTime').value||'00:00');
+  if(!isFinite(s)){ toast('请填写正确的日期时间'); return; }
+  var h=parseFloat($('sDurH').value)||0, m=parseFloat($('sDurM').value)||0;
+  var dur=Math.round(h*60+m)*MIN;
+  if(dur<MIN){ toast('时长至少 1 分钟'); return; }
+  var pl=findPlacement(schedLine,snapMin(s),dur);
+  if(!pl){ toast('三条线都放不下这个时间段'); return; }
+  createTask(schedItem.name,pl.line,pl.start,pl.start+dur,schedItem.color);
+  if(schedItem.type==='once'){ schedItem.done=true; }
+  else { schedItem.checkins.push(pl.start); }
+  save(); renderPool();
+  $('schedOverlay').classList.remove('show');
+});
 
 /* ================= line rename ================= */
 var lpTimer=null;
@@ -1250,7 +1516,7 @@ $('importFile').addEventListener('change',function(e){
       var d=JSON.parse(r.result);
       if(!d||d.v!==1||!Array.isArray(d.tasks)) throw 0;
       if(!confirm('导入将覆盖当前全部数据（'+d.tasks.length+' 个任务），继续？')) return;
-      store=d; save(); refreshLineLabels(); render(); renderCal();
+      store=d; store.pool=Array.isArray(d.pool)?d.pool:[]; save(); refreshLineLabels(); render(); renderCal();
       toast('导入成功');
     }catch(err){ toast('文件格式不正确'); }
   };
